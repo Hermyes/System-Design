@@ -1,0 +1,624 @@
+openapi: 3.0.3
+info:
+  title: Steam API (Unofficial)
+  description: API для взаимодействия с торговой площадкой, разделом Друзья и разделом чат-знакомств Steam
+  version: 1.1.0
+servers:
+  - url: https://steamcommunity.com/
+security:
+  - steamLoginSecure: []
+  - sessionIdSecure: []
+tags:
+  - name: market
+    description: Операции торговой площадкой Steam
+  - name: friends
+    description: Операции с друзьями Steam
+  - name: chat
+    description: Раздел чат-знакомств (matchmaking и обмен сообщениями)
+
+paths:
+  /market/myhistory:
+    get:
+      tags:
+        - market
+      summary: Получение истории торгов пользователя
+      description: Возвращает историю операций на рынке. Необходимы cookies steamLoginSecure и sessionid.
+      responses:
+        '200':
+          description: Успешный ответ с историей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketHistoryResponse'
+        '401': { description: Требуется авторизация }
+        '400': { description: Неверный запрос }
+
+  /market/mylistings:
+    get:
+      tags:
+        - market
+      summary: Получение активных лотов пользователя
+      description: Возвращает список выставленных и ожидающих подтверждения лотов. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: count
+          in: query
+          description: Количество записей
+          schema:
+            type: integer
+            default: 10
+        - name: start
+          in: query
+          description: Смещение для пагинации
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Список лотов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketListings'
+        '401': { description: Требуется авторизация }
+
+  /market/sellitem/:
+    post:
+      tags:
+        - market
+      summary: Выставить предмет на продажу
+      description: Размещение нового лота. Необходимы cookies steamLoginSecure и sessionid.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MarketSellItemRequest'
+      responses:
+        '200':
+          description: Лот успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketSellItemResponse'
+        '400': { description: Ошибка параметров }
+        '401': { description: Требуется авторизация }
+
+  /market/removelisting/{listingid}:
+    post:
+      tags:
+        - market
+      summary: Удалить лот
+      description: Удаляет выставленный лот. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: listingid
+          in: path
+          required: true
+          description: Идентификатор лота
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                sessionid:
+                  type: string
+      responses:
+        '200': { description: Лот успешно удалён }
+        '401': { description: Требуется авторизация }
+
+  /market/priceoverview:
+    get:
+      tags:
+        - market
+      summary: Получение текущей цены предмета
+      description: Возвращает минимальную и медианную цену, объём продаж. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: country
+          in: query
+          required: true
+          description: Код страны (ISO)
+          schema:
+            type: string
+        - name: currency
+          in: query
+          required: true
+          description: Идентификатор валюты
+          schema:
+            type: integer
+        - name: appid
+          in: query
+          required: true
+          description: ID приложения
+          schema:
+            type: integer
+        - name: market_hash_name
+          in: query
+          required: true
+          description: Уникальное имя предмета
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Информация о цене
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketPriceOverview'
+        '400': { description: Неверные параметры }
+
+  /market/pricehistory:
+    get:
+      tags:
+        - market
+      summary: Получение истории изменения цены
+      description: Возвращает массив исторических цен и объёмов. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: appid
+          in: query
+          required: true
+          description: ID приложения
+          schema:
+            type: integer
+        - name: market_hash_name
+          in: query
+          required: true
+          description: Уникальное имя предмета
+          schema:
+            type: string
+      responses:
+        '200':
+          description: История цены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketPriceHistory'
+        '400': { description: Неверные параметры }
+
+  /search/SearchCommunityAjax:
+    get:
+      tags:
+        - friends
+      summary: Поиск пользователей среди сообщества
+      description: Поиск пользователей по тексту. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: text
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: filter
+          in: query
+          required: true
+          schema:
+            type: string
+            example: users
+        - name: sessionid
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: steamid_user
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Результаты поиска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchCommunityResponse'
+        '401': { description: Требуется авторизация }
+        '400': { description: Неверные параметры }
+
+  /actions/AddFriendAjax:
+    post:
+      tags:
+        - friends
+      summary: Отправка заявки в друзья
+      description: Отправляет запрос на добавление в друзья. Необходимы cookies steamLoginSecure и sessionid.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddFriendRequest'
+      responses:
+        '200':
+          description: Заявка отправлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddFriendResponse'
+        '401': { description: Требуется авторизация }
+        '400': { description: Неверные параметры }
+
+  /id/{user}/friends/action:
+    post:
+      tags:
+        - friends
+      summary: Управление дружбой и заявками
+      description: Подтверждение, отклонение, удаление или блокировка. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FriendActionRequest'
+      responses:
+        '200':
+          description: Результат операции
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FriendActionResponse'
+        '401': { description: Требуется авторизация }
+        '400': { description: Неверные параметры }
+
+  /matchmaking/recommendations:
+    get:
+      tags:
+        - chat
+      summary: Получение рекомендаций пользователей для общения
+      x-added-in: "1.2.0"
+      description: Возвращает список рекомендуемых игроков для начала чата. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: sessionid
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: count
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: criteria
+          in: query
+          schema:
+            type: string
+            description: Фильтрация по критериям (например, язык, время в игре)
+      responses:
+        '200':
+          description: Список рекомендованных пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRecommendations'
+        '401': { description: Требуется авторизация }
+
+  /matchmaking/requests:
+    post:
+      tags:
+        - chat
+      summary: Отправка запроса на знакомство
+      x-added-in: "1.2.0"
+      description: Создаёт заявку на знакомство с другим игроком. Необходимы cookies steamLoginSecure и sessionid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchRequestCreate'
+      responses:
+        '201':
+          description: Заявка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequestResponse'
+        '400': { description: Неверные параметры }
+        '401': { description: Требуется авторизация }
+
+  /matchmaking/requests/{requestId}/accept:
+    post:
+      tags:
+        - chat
+      summary: Принять запрос на знакомство
+      x-added-in: "1.2.0"
+      description: Принимает поступившую заявку и создаёт чат. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Запрос принят, чат создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequestResponse'
+        '401': { description: Требуется авторизация }
+
+  /matchmaking/requests/{requestId}/reject:
+    post:
+      tags:
+        - chat
+      summary: Отклонить запрос на знакомство
+      x-added-in: "1.2.0"
+      description: Отклоняет заявку на знакомство. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Заявка отклонена }
+        '401': { description: Требуется авторизация }
+
+  /chat/conversations:
+    get:
+      tags:
+        - chat
+      summary: Список активных бесед
+      x-added-in: "1.2.0"
+      description: Возвращает список всех активных чатов пользователя. Необходимы cookies steamLoginSecure и sessionid.
+      responses:
+        '200':
+          description: Список бесед
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationList'
+        '401': { description: Требуется авторизация }
+
+  /chat/conversations/{convId}/messages:
+    get:
+      tags:
+        - chat
+      summary: Получение сообщений из беседы
+      x-added-in: "1.2.0"
+      description: Возвращает историю сообщений беседы. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: convId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+            description: Вернуть сообщения, отправленные после указанного времени
+      responses:
+        '200':
+          description: Сообщения беседы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageList'
+        '401': { description: Требуется авторизация }
+
+    post:
+      tags:
+        - chat
+      summary: Отправка сообщения в беседу
+      x-added-in: "1.2.0"
+      description: Отправляет новое сообщение в беседу. Необходимы cookies steamLoginSecure и sessionid.
+      parameters:
+        - name: convId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewMessage'
+      responses:
+        '201':
+          description: Сообщение отправлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageItem'
+        '400': { description: Неверные параметры }
+        '401': { description: Требуется авторизация }
+
+components:
+  schemas:
+    MarketHistoryResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        results_html: { type: string }
+
+    MarketListings:
+      type: object
+      properties:
+        success: { type: boolean }
+        total_count: { type: integer }
+        assets: { type: object }
+        start: { type: integer }
+        num_active_listings: { type: integer }
+        hovers: { type: string }
+
+    MarketSellItemRequest:
+      type: object
+      properties:
+        sessionid: { type: string }
+        appid: { type: integer }
+        contextid: { type: integer }
+        assetid: { type: string }
+        amount: { type: integer }
+        price: { type: integer }
+      required: [sessionid, appid, contextid, assetid, amount, price]
+
+    MarketSellItemResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        requires_confirmation: { type: boolean }
+        needs_mobile_confirmation: { type: boolean }
+
+    MarketPriceOverview:
+      type: object
+      properties:
+        success: { type: boolean }
+        lowest_price: { type: string }
+        volume: { type: string }
+        median_price: { type: string }
+
+    MarketPriceHistory:
+      type: object
+      properties:
+        success: { type: boolean }
+        prices:
+          type: array
+          items:
+            type: array
+            items: { type: string }
+
+    SearchCommunityResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        search_text: { type: string }
+        search_result_count: { type: integer }
+        search_filter: { type: string }
+        search_page: { type: integer }
+        html: { type: string }
+
+    AddFriendRequest:
+      type: object
+      properties:
+        sessionID: { type: string }
+        steamid: { type: string }
+        accept_invite:
+          type: integer
+          enum: [0,1]
+      required: [sessionID, steamid, accept_invite]
+
+    AddFriendResponse:
+      type: object
+      properties:
+        invited:
+          type: array
+          items: { type: string }
+        success: { type: boolean }
+
+    FriendActionRequest:
+      type: object
+      properties:
+        sessionid: { type: string }
+        steamid: { type: string }
+        ajax: { type: integer }
+        action:
+          type: string
+          enum: [accept, remove, ignore_invite, block]
+        steamids:
+          type: array
+          items: { type: string }
+      required: [sessionid, steamid, ajax, action, steamids]
+
+    FriendActionResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        rgCounts:
+          type: object
+          properties:
+            cFriendsPending: { type: integer }
+            cFriendsBlocked: { type: integer }
+            cFollowing: { type: integer }
+            cGroupsPending: { type: integer }
+            cFriends: { type: integer }
+            cGroups: { type: integer }
+
+    MatchRecommendations:
+      type: object
+      properties:
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              steamid: { type: string }
+              persona_name: { type: string }
+              avatar_url: { type: string }
+              compatibility_score: { type: number }
+
+    MatchRequestCreate:
+      type: object
+      properties:
+        sessionid: { type: string }
+        target_steamid: { type: string }
+        message: { type: string }
+      required: [sessionid, target_steamid]
+
+    MatchRequestResponse:
+      type: object
+      properties:
+        request_id: { type: string }
+        from_steamid: { type: string }
+        to_steamid: { type: string }
+        status: { type: string, enum: [pending, accepted, rejected] }
+
+    ConversationList:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items:
+            type: object
+            properties:
+              conv_id: { type: string }
+              participants:
+                type: array
+                items: { type: string }
+              last_message: { type: string }
+              updated_at: { type: string, format: date-time }
+
+    MessageList:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageItem'
+
+    MessageItem:
+      type: object
+      properties:
+        message_id: { type: string }
+        sender: { type: string }
+        content: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    NewMessage:
+      type: object
+      properties:
+        sessionid: { type: string }
+        content: { type: string }
+      required: [sessionid, content]
+
+  securitySchemes:
+    steamLoginSecure:
+      type: apiKey
+      in: cookie
+      name: steamLoginSecure
+    sessionIdSecure:
+      type: apiKey
+      in: cookie
+      name: sessionid
